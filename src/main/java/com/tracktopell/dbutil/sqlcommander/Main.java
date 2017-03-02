@@ -3,6 +3,7 @@ package com.tracktopell.dbutil.sqlcommander;
 import java.io.*;
 
 import java.sql.*;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -21,6 +22,7 @@ public class Main {
 
     protected Properties connectionProperties;
     protected boolean printInfoDBOnStartup = false;
+	protected static String rdbms = "[SQL]";
 
     protected static Logger logger = Logger.getLogger(Main.class.getSimpleName());
 
@@ -125,7 +127,7 @@ public class Main {
             System.out.println("\t);");
             executeQuery.close();
 
-            /*
+            
 			ResultSet resColumnsTable = metaData.getColumns(null, schemaTableIter, tableNameIter, null);
 			for(int columnCounter = 0;resColumnsTable.next();columnCounter++) {
 				if(columnCounter>0){
@@ -160,24 +162,25 @@ public class Main {
 			System.out.println();
 			System.out.println("\t);");
 			resColumnsTable.close();
-             */
+            
         }
         tablesRS.close();
 
         System.out.println("=======================================");
     }
 
-    protected void executeScriptFrom(InputStream is, Connection conn, boolean continueWithErrors)
+    protected void executeScriptFrom(InputStream is,String rdbmsPrompt, Connection conn, boolean continueWithErrors, boolean prinToConsole, boolean repeatInput)
             throws SQLException, IOException {
 
         BufferedReader brInput = null;
         ResultSet rs = null;
         ResultSetMetaData rsmd = null;
-        String sql = null;
-
+        String sqlInput = null;
+		String promt1   = rdbmsPrompt+"> ";
+		String promt2   = "      > ";
         int updateCount;
         int numberOfColumns;
-        boolean prinToConsole = true;
+        
 
         prinToConsole = true;
 
@@ -186,34 +189,34 @@ public class Main {
             brInput = new BufferedReader(new InputStreamReader(is));
 
             if (prinToConsole) {
-                System.out.print("sql > ");
+                System.out.print(promt1);
             }
             Statement sexec = conn.createStatement();
 
             String fullSql = "";
-            while ((sql = brInput.readLine()) != null) {
-                if (is != System.in) {
+            while ((sqlInput = brInput.readLine()) != null) {
+                if (repeatInput) {
                     if (prinToConsole) {
-                        System.out.println(sql);
+                        System.out.println(sqlInput);
                     }
                 }
-                if (sql.trim().toLowerCase().equals("exit")) {
+                if (sqlInput.trim().toLowerCase().equals("exit")) {
                     break;
-                } else if (sql.trim().toLowerCase().equals("!dbinfo")) {
+                } else if (sqlInput.trim().toLowerCase().equals("!dbinfo")) {
                     printDBInfo(conn);
                     if (prinToConsole) {
                         System.out.println("");
-                        System.out.print("sql > ");
+                        System.out.print(promt1);
                     }
                     continue;
                 }
-                if (sql.trim().length() == 0 || sql.startsWith("--")) {
+                if (sqlInput.trim().length() == 0 || sqlInput.startsWith("--")) {
                     if (prinToConsole) {
-                        System.out.print("sql > ");
+                        System.out.print(promt1);
                     }
                     continue;
-                } else if (sql.trim().endsWith(";")) {
-                    fullSql += " " + sql.trim();
+                } else if (sqlInput.trim().endsWith(";")) {
+                    fullSql += " " + sqlInput.trim();
                     try {
                         fullSql = fullSql.replaceAll(";$", "");
                         boolean resultExecution = false;
@@ -314,16 +317,17 @@ public class Main {
                     }
                     fullSql = "";
                     if (prinToConsole) {
-                        System.out.print("sql > ");
+                        System.out.print(promt1);
                     }
                 } else {
-                    fullSql += " " + sql.trim();
+                    fullSql += " " + sqlInput.trim();
                     if (prinToConsole) {
-                        System.out.print("    > ");
+                        System.out.print(promt2);
                     }
                 }
             }
             if (prinToConsole) {
+				System.out.println("<EOF>");
                 System.out.println("Script executed.");
             }
         } catch (SQLException ex) {
@@ -341,17 +345,28 @@ public class Main {
         }
     }
 
-    public void shellDB() {
-
+    public void shellDB(boolean continueWithErrors) {
+		boolean prinToConsole = true;
+		boolean repeatInput   = false;
+		Console console = null;
+		try{
+			console = System.console();
+			logger.fine("shellDB: console = "+console);
+			if(console == null){
+				repeatInput   = true;
+			}
+		}catch(Exception e){
+			logger.log(Level.SEVERE, "->shellDB:", e);
+		}
         logger.finer("shellDB: --------------");
 
         Connection conn = null;
 
         try {
             conn = getConnection();
-            logger.finer("shellDB:OK, the DB exist !!");
-            logger.finer("shellDB:Ready, Now read from stdin, connectionForInit=" + conn);
-            executeScriptFrom(System.in, conn, true);
+            logger.fine("shellDB:OK, the DB exist !!");
+            logger.fine("shellDB:Ready, Now read from stdin(is pipe?"+repeatInput+"), connectionForInit=" + conn);
+            executeScriptFrom(System.in, rdbms, conn, continueWithErrors,prinToConsole, repeatInput );
             logger.finer("-> EOF stdin, end");
         } catch (IOException ex) {
             logger.log(Level.SEVERE, "Something with the reading script:" + ex.getLocalizedMessage(), ex);
@@ -370,51 +385,49 @@ public class Main {
         }
     }
 
-    private void extractResource(String resourceToExtract, String resourcePathToExtract) throws FileNotFoundException, IOException {
-        InputStream is = getClass().getResourceAsStream(resourcePathToExtract);
-        OutputStream os = new FileOutputStream(resourceToExtract);
-        int r;
-        byte[] buffer = new byte[1024 * 128];
-        while ((r = is.read(buffer, 0, buffer.length)) != -1) {
-            os.write(buffer, 0, r);
-        }
-        is.close();
-        os.close();
-    }
-
     public static void main(String args[]) {
         Main dbInstaller;
         String driver   = null;
         String url      = null;
         String user     = null;        
         String password = null;
+		boolean continueWithErrors=false;
         
-        boolean printInfoDBOnStartup = false;
-        
-        String prevArg  = null;                
-        String argValue = null;
-        
-        for(String arg: args){                            
-            if(prevArg != null){
-                argValue = arg;
-                if(prevArg.equals("-driverClass")){
-                    driver   = argValue;
-                    logger.fine("  ->driver="+driver);
-                } else if(prevArg.equals("-url")){
-                    url      = argValue;
-                    logger.fine("     ->url="+url);
-                } else if(prevArg.equals("-user")){
-                    user     = argValue;
-                    logger.fine("    ->user="+user);
-                } else if(prevArg.equals("-password")){
-                    password = argValue;
-                    logger.fine("->password="+password);
-                } else if(prevArg.equalsIgnoreCase("-printDBInfoOnStatup")){
-                    printInfoDBOnStartup = true;
-                    logger.fine("->printInfoDBOnStartup="+printInfoDBOnStartup);
-                }
-            }
-            prevArg =  arg;
+        boolean printInfoDBOnStartup = false;        
+		String argName =null;
+		String argValue=null;
+			
+        for(String arg: args){
+			logger.fine("-> arg["+arg+"]");
+			String argValueArr[]=arg.split("=");
+			logger.fine("-> argValueArr["+Arrays.asList(argValueArr)+"]");
+			
+            argName = argValueArr[0];
+			if(argValueArr.length>1){
+				argValue = argValueArr[1];
+			} else {
+				argValue = "";
+			}
+			
+			if(argName.equals("-driverClass")){
+				driver   = argValue;
+				logger.fine("  ->driver="+driver);
+			} else if(argName.equals("-url")){
+				url      = argValue;
+				logger.fine("     ->url="+url);
+			} else if(argName.equals("-user")){
+				user     = argValue;
+				logger.fine("    ->user="+user);
+			} else if(argName.equals("-password")){
+				password = argValue;
+				logger.fine("->password="+password);
+			} else if(argName.equalsIgnoreCase("-printDBInfoOnStatup") && argValue.equals("true")){
+				printInfoDBOnStartup = true;
+				logger.fine("->printInfoDBOnStartup="+printInfoDBOnStartup);
+			} else if(argValue.equalsIgnoreCase("-continueWithErrors")){
+				continueWithErrors=true;
+				logger.fine("->continueWithErrors=true");
+			}
         }
 
         if(driver == null){
@@ -442,10 +455,19 @@ public class Main {
         parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_PASSWORD    , password);
         
         try {
+			if(driver.contains("mysql")){
+				rdbms = "mysql";
+			} else if(driver.contains("derby")){
+				rdbms = "derby";
+			} else if(driver.contains("oracle")){
+				rdbms = "oracle";
+			}
+			
+			
             dbInstaller = new Main(parameters4CreateAndExecute);
             dbInstaller.setPrintInfoDBOnStartup(printInfoDBOnStartup);            
             logger.fine("----------------------------- SQLCommanderPrompt -----------------------------");
-            dbInstaller.shellDB();
+            dbInstaller.shellDB(continueWithErrors);
         } catch (Exception ex) {
             ex.printStackTrace(System.err);
         }
@@ -454,6 +476,6 @@ public class Main {
     private static void printUssage() {
         System.err.println("\t----------------------------- SQLCommanderPrompt -----------------------------");        
         System.err.println("usage:\t");
-        System.err.println("\tcom.tracktopell.dbutil.sqlcommander.SQLCommanderPrompt -driverClass com.db.driver.ETC  -url \"jdbc:db://127.0.0.1:80/db\" -user xxxx -password yyy");
+        System.err.println("\tcom.tracktopell.dbutil.sqlcommander.SQLCommanderPrompt -driverClass=com.db.driver.ETC  \"-url=jdbc:db://127.0.0.1:80/db\" -user=xxxx -password=yyy");
     }    
 }
