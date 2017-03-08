@@ -3,12 +3,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.tracktopell.dbutil</groupId>
 	<artifactId>SQLCommander</artifactId>
-	<version>1.22</version>
+	<version>1.23</version>
 	<packaging>jar</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<maven.compiler.source>1.8</maven.compiler.source>
-		<maven.compiler.target>1.8</maven.compiler.target>
+		<maven.compiler.source>1.7</maven.compiler.source>
+		<maven.compiler.target>1.7</maven.compiler.target>
 	</properties>
     
 	<dependencies>
@@ -55,6 +55,8 @@
 				<filtering>true</filtering>
 			</resource>
 		</resources>
+		
+		<finalName>${project.artifactId}</finalName>
 
 		<plugins>
 			<plugin>

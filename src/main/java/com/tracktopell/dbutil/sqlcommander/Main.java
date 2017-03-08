@@ -15,7 +15,7 @@ import java.util.logging.Logger;
  */
 public class Main {
 	private static       Properties versionProperties;
-	public  static final String VERSION_LOCATION = "/version.properties";
+	public  static final String VERSION_LOCATION = "/com/tracktopell/sqlcommander/version.properties";
 	public  static final String BUILT_TIMESTAMP = "version.build.timestamp";
 	public  static final String PROJECT_VERSION = "project.version";
 	
@@ -487,7 +487,7 @@ public class Main {
     private static void printUssage() {
 		Properties vp=loadVersionProperties();
         System.err.println("\t----------------------------- Tracktopell : SQLCommander -----------------------------");      
-		System.err.println("\t  BUILD: \t"+vp.getProperty(BUILT_TIMESTAMP));
+		System.err.println("\tBUILD  : \t"+vp.getProperty(BUILT_TIMESTAMP));
 		System.err.println("\tVERSION: \t"+vp.getProperty(PROJECT_VERSION));
         System.err.println("usage:\t");
         System.err.println("\tcom.tracktopell.dbutil.sqlcommander.Main -driverClass=com.db.driver.ETC  \"-url=jdbc:db://127.0.0.1:80/db\" -user=xxxx -password=yyy");
