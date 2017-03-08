@@ -14,7 +14,11 @@ import java.util.logging.Logger;
  * @author Alfredo Estrada
  */
 public class Main {
-
+	private static       Properties versionProperties;
+	public  static final String VERSION_LOCATION = "/version.properties";
+	public  static final String BUILT_TIMESTAMP = "version.build.timestamp";
+	public  static final String PROJECT_VERSION = "project.version";
+	
     protected static final String PARAM_CONNECTION_JDBC_CLASS_DRIVER = "jdbc.driverClassName";
     protected static final String PARAM_CONNECTION_JDBC_URL = "jdbc.url";
     protected static final String PARAM_CONNECTION_JDBC_USER = "jdbc.user";
@@ -177,11 +181,10 @@ public class Main {
         ResultSetMetaData rsmd = null;
         String sqlInput = null;
 		String promt1   = rdbmsPrompt+"> ";
-		String promt2   = "      > ";
+		String promt2   = "      >>";
         int updateCount;
         int numberOfColumns;
         
-
         prinToConsole = true;
 
         try {
@@ -327,7 +330,7 @@ public class Main {
                 }
             }
             if (prinToConsole) {
-				System.out.println("<EOF>");
+				System.out.println("{EOF}");
                 System.out.println("Script executed.");
             }
         } catch (SQLException ex) {
@@ -345,10 +348,11 @@ public class Main {
         }
     }
 
-    public void shellDB(boolean continueWithErrors) {
+    public int shellDB(boolean continueWithErrors) {
 		boolean prinToConsole = true;
 		boolean repeatInput   = false;
 		Console console = null;
+		int exitStatus = -1;
 		try{
 			console = System.console();
 			logger.fine("shellDB: console = "+console);
@@ -368,12 +372,16 @@ public class Main {
             logger.fine("shellDB:Ready, Now read from stdin(is pipe?"+repeatInput+"), connectionForInit=" + conn);
             executeScriptFrom(System.in, rdbms, conn, continueWithErrors,prinToConsole, repeatInput );
             logger.finer("-> EOF stdin, end");
+			exitStatus = 0;
         } catch (IOException ex) {
             logger.log(Level.SEVERE, "Something with the reading script:" + ex.getLocalizedMessage(), ex);
+			exitStatus = 5;
         } catch (IllegalStateException ex) {
             logger.log(Level.SEVERE, "Something with the Classpath and JDBC Driver:" + ex.getLocalizedMessage(), ex);
+			exitStatus = 6;
         } catch (SQLException ex) {
             logger.log(Level.SEVERE, "Something with the JDBC Connection:" + ex.getLocalizedMessage(), ex);
+			exitStatus = 7;
         } finally {
             try {
                 if (conn != null) {
@@ -381,8 +389,10 @@ public class Main {
                 }
             } catch (SQLException ex1) {
                 logger.log(Level.SEVERE, ex1.getLocalizedMessage(), ex1);
+				exitStatus = 8;
             }
         }
+		return exitStatus;
     }
 
     public static void main(String args[]) {
@@ -453,12 +463,12 @@ public class Main {
         parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_URL         , url);
         parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_USER        , user);
         parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_PASSWORD    , password);
-        
+        int exitStatus = 0;
         try {
 			if(driver.contains("mysql")){
-				rdbms = "mysql";
+				rdbms = " mysql";
 			} else if(driver.contains("derby")){
-				rdbms = "derby";
+				rdbms = " derby";
 			} else if(driver.contains("oracle")){
 				rdbms = "oracle";
 			}
@@ -467,15 +477,33 @@ public class Main {
             dbInstaller = new Main(parameters4CreateAndExecute);
             dbInstaller.setPrintInfoDBOnStartup(printInfoDBOnStartup);            
             logger.fine("----------------------------- SQLCommanderPrompt -----------------------------");
-            dbInstaller.shellDB(continueWithErrors);
+            exitStatus = dbInstaller.shellDB(continueWithErrors);
         } catch (Exception ex) {
             ex.printStackTrace(System.err);
-        }
+        } 
+		System.exit(exitStatus);
     }
 
     private static void printUssage() {
-        System.err.println("\t----------------------------- SQLCommanderPrompt -----------------------------");        
+		Properties vp=loadVersionProperties();
+        System.err.println("\t----------------------------- Tracktopell : SQLCommander -----------------------------");      
+		System.err.println("\t  BUILD: \t"+vp.getProperty(BUILT_TIMESTAMP));
+		System.err.println("\tVERSION: \t"+vp.getProperty(PROJECT_VERSION));
         System.err.println("usage:\t");
-        System.err.println("\tcom.tracktopell.dbutil.sqlcommander.SQLCommanderPrompt -driverClass=com.db.driver.ETC  \"-url=jdbc:db://127.0.0.1:80/db\" -user=xxxx -password=yyy");
-    }    
+        System.err.println("\tcom.tracktopell.dbutil.sqlcommander.Main -driverClass=com.db.driver.ETC  \"-url=jdbc:db://127.0.0.1:80/db\" -user=xxxx -password=yyy");
+    }
+	
+	private static Properties loadVersionProperties(){
+		if(versionProperties == null){
+			versionProperties = new Properties();
+			try {
+				versionProperties.load(Main.class.getResourceAsStream(VERSION_LOCATION));				
+			}catch(IOException ioe){
+				logger.log(Level.WARNING, "loadVersionProperties, cant find ", ioe);				
+				versionProperties.put(BUILT_TIMESTAMP, "?");				
+				versionProperties.put(PROJECT_VERSION, "?");
+			}
+		}
+		return versionProperties;
+	}
 }
