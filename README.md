@@ -1,2 +1,2 @@
 # SQLCommander
-JDBC console client
+JDBC console client using stdin/stdout
