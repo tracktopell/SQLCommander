@@ -404,40 +404,41 @@ public class Main {
 		boolean continueWithErrors=false;
         
         boolean printInfoDBOnStartup = false;        
+		String prevArgName =null;
 		String argName =null;
 		String argValue=null;
 			
         for(String arg: args){
-			logger.fine("-> arg["+arg+"]");
-			String argValueArr[]=arg.split("=");
-			logger.fine("-> argValueArr["+Arrays.asList(argValueArr)+"]");
-			
-            argName = argValueArr[0];
-			if(argValueArr.length>1){
-				argValue = argValueArr[1];
-			} else {
-				argValue = "";
+			logger.info("-> arg["+arg+"]");
+			if(argName == null){
+				argName = arg;
+			} else{				
+				argValue = arg;
+
+				logger.info("\t-> "+argName+" = "+argValue);
+				if(argName.equals("-driverClass")){
+					driver   = argValue;
+					logger.fine("  ->driver="+driver);
+				} else if(argName.equals("-url")){
+					url      = argValue;
+					logger.fine("     ->url="+url);
+				} else if(argName.equals("-user")){
+					user     = argValue;
+					logger.fine("    ->user="+user);
+				} else if(argName.equals("-password")){
+					password = argValue;
+					logger.fine("->password="+password);
+				} else if(argName.equalsIgnoreCase("-printDBInfoOnStatup") && argValue.equals("true")){
+					printInfoDBOnStartup = true;
+					logger.fine("->printInfoDBOnStartup="+printInfoDBOnStartup);
+				} else if(argName.equalsIgnoreCase("-continueWithErrors")){
+					continueWithErrors=true;
+					logger.fine("->continueWithErrors=true");
+				}
+				argName  = null;
+				argValue = null;
 			}
-			
-			if(argName.equals("-driverClass")){
-				driver   = argValue;
-				logger.fine("  ->driver="+driver);
-			} else if(argName.equals("-url")){
-				url      = argValue;
-				logger.fine("     ->url="+url);
-			} else if(argName.equals("-user")){
-				user     = argValue;
-				logger.fine("    ->user="+user);
-			} else if(argName.equals("-password")){
-				password = argValue;
-				logger.fine("->password="+password);
-			} else if(argName.equalsIgnoreCase("-printDBInfoOnStatup") && argValue.equals("true")){
-				printInfoDBOnStartup = true;
-				logger.fine("->printInfoDBOnStartup="+printInfoDBOnStartup);
-			} else if(argValue.equalsIgnoreCase("-continueWithErrors")){
-				continueWithErrors=true;
-				logger.fine("->continueWithErrors=true");
-			}
+			prevArgName = arg;
         }
 
         if(driver == null){
