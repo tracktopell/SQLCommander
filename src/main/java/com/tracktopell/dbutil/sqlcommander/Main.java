@@ -19,10 +19,10 @@ public class Main {
 	public  static final String BUILT_TIMESTAMP = "version.build.timestamp";
 	public  static final String PROJECT_VERSION = "project.version";
 	
-    protected static final String PARAM_CONNECTION_JDBC_CLASS_DRIVER = "jdbc.driverClassName";
-    protected static final String PARAM_CONNECTION_JDBC_URL = "jdbc.url";
-    protected static final String PARAM_CONNECTION_JDBC_USER = "jdbc.user";
-    protected static final String PARAM_CONNECTION_JDBC_PASSWORD = "jdbc.password";
+    public static final String PARAM_CONNECTION_JDBC_CLASS_DRIVER = "jdbc.driverClassName";
+    public static final String PARAM_CONNECTION_JDBC_URL = "jdbc.url";
+    public static final String PARAM_CONNECTION_JDBC_USER = "jdbc.user";
+    public static final String PARAM_CONNECTION_JDBC_PASSWORD = "jdbc.password";
 
     protected Properties connectionProperties;
     protected boolean printInfoDBOnStartup = false;
@@ -173,7 +173,7 @@ public class Main {
         System.out.println("=======================================");
     }
 
-    protected void executeScriptFrom(InputStream is,String rdbmsPrompt, Connection conn, boolean continueWithErrors, boolean prinToConsole, boolean repeatInput)
+    public void executeScriptFrom(InputStream is,String rdbmsPrompt, Connection conn, boolean continueWithErrors, boolean prinToConsole, boolean repeatInput)
             throws SQLException, IOException {
 
         BufferedReader brInput = null;
@@ -348,7 +348,11 @@ public class Main {
         }
     }
 
-    public int shellDB(boolean continueWithErrors) {
+	public int shellDB(boolean continueWithErrors) {
+		return shellDB(System.in, continueWithErrors);
+	}
+	
+    public int shellDB(InputStream is,boolean continueWithErrors) {
 		boolean prinToConsole = true;
 		boolean repeatInput   = false;
 		Console console = null;
@@ -370,7 +374,7 @@ public class Main {
             conn = getConnection();
             logger.fine("shellDB:OK, the DB exist !!");
             logger.fine("shellDB:Ready, Now read from stdin(is pipe?"+repeatInput+"), connectionForInit=" + conn);
-            executeScriptFrom(System.in, rdbms, conn, continueWithErrors,prinToConsole, repeatInput );
+            executeScriptFrom(is, rdbms, conn, continueWithErrors,prinToConsole, repeatInput );
             logger.finer("-> EOF stdin, end");
 			exitStatus = 0;
         } catch (IOException ex) {
@@ -409,31 +413,31 @@ public class Main {
 		String argValue=null;
 			
         for(String arg: args){
-			logger.info("-> arg["+arg+"]");
+			logger.fine("-> arg["+arg+"]");
 			if(argName == null){
 				argName = arg;
 			} else{				
 				argValue = arg;
 
-				logger.info("\t-> "+argName+" = "+argValue);
+				logger.finer("\t-> "+argName+" = "+argValue);
 				if(argName.equals("-driverClass")){
 					driver   = argValue;
-					logger.fine("  ->driver="+driver);
+					logger.finest("  ->driver="+driver);
 				} else if(argName.equals("-url")){
 					url      = argValue;
-					logger.fine("     ->url="+url);
+					logger.finest("     ->url="+url);
 				} else if(argName.equals("-user")){
 					user     = argValue;
-					logger.fine("    ->user="+user);
+					logger.finest("    ->user="+user);
 				} else if(argName.equals("-password")){
 					password = argValue;
-					logger.fine("->password="+password);
+					logger.finest("->password="+password);
 				} else if(argName.equalsIgnoreCase("-printDBInfoOnStatup") && argValue.equals("true")){
 					printInfoDBOnStartup = true;
-					logger.fine("->printInfoDBOnStartup="+printInfoDBOnStartup);
+					logger.finest("->printInfoDBOnStartup="+printInfoDBOnStartup);
 				} else if(argName.equalsIgnoreCase("-continueWithErrors")){
 					continueWithErrors=true;
-					logger.fine("->continueWithErrors=true");
+					logger.finest("->continueWithErrors=true");
 				}
 				argName  = null;
 				argValue = null;
