@@ -25,13 +25,13 @@ public class Main {
     public static final String PARAM_CONNECTION_JDBC_PASSWORD = "jdbc.password";
 
     protected Properties connectionProperties;
-    protected boolean printInfoDBOnStartup = false;
+    protected boolean printInfoDBOnStartup = false;	
 	protected static String rdbms = "[SQL]";
 
     protected static Logger logger = Logger.getLogger(Main.class.getSimpleName());
 
     public Main(Properties p) throws IOException {
-        logger.finer("init(): try to load properties :" + p);
+        logger.fine("init(): try to load properties :" + p);
         this.connectionProperties = p;
     }
 
@@ -46,7 +46,7 @@ public class Main {
     protected Connection getConnection() throws IllegalStateException, SQLException {
         Connection conn = null;
         try {
-            logger.finer("getConnection: ...try get Connection (using " + connectionProperties + ")for Create DB.");
+            logger.fine("getConnection: ...try get Connection (using " + connectionProperties + ")for Create DB.");
             Class.forName(connectionProperties.getProperty(PARAM_CONNECTION_JDBC_CLASS_DRIVER)).newInstance();
         } catch (ClassNotFoundException ex) {
             throw new IllegalStateException(ex.getMessage());
@@ -56,12 +56,12 @@ public class Main {
             throw new IllegalStateException(ex.getMessage());
         }
 
-        logger.finer("getConnection:Ok, Loaded JDBC Driver.");
+        logger.fine("getConnection:Ok, Loaded JDBC Driver.");
         String urlConnection = connectionProperties.getProperty("jdbc.url");
 
         if (urlConnection.contains("${db.name}")) {
             urlConnection = urlConnection.replace("${db.name}", connectionProperties.getProperty("db.name"));
-            logger.finer("getConnection:replacement for variable db.name, now urlConnection=" + urlConnection);
+            logger.fine("getConnection:replacement for variable db.name, now urlConnection=" + urlConnection);
         }
 
         conn = DriverManager.getConnection(
@@ -69,7 +69,7 @@ public class Main {
                 connectionProperties.getProperty(PARAM_CONNECTION_JDBC_USER),
                 connectionProperties.getProperty(PARAM_CONNECTION_JDBC_PASSWORD));
 
-        logger.finer("getConnection:OK Connected to DB.");
+        logger.fine("getConnection:OK Connected to DB.");
         if(printInfoDBOnStartup){
             printDBInfo(conn);
         }
@@ -239,74 +239,63 @@ public class Main {
 
                             rsmd = rs.getMetaData();
                             numberOfColumns = rsmd.getColumnCount();
-                            if (prinToConsole) {
-                                System.out.print("Resultset{\n");
+                            if (prinToConsole) {                                
+								System.out.print("\n--------------\n");
                             }
-                            if (prinToConsole) {
-                                System.out.print("\tClassResultSet{\n\t\t");
+                            
+                            for (int j = 0; j < numberOfColumns; j++) {
+                                if (prinToConsole) {
+                                    System.out.print((j > 0 ? "|'" : "'") + rsmd.getColumnClassName(j + 1) + "'");
+                                }
+                            }
+                            if (prinToConsole) {           
+								System.out.print("\n--------------\n");
                             }
                             for (int j = 0; j < numberOfColumns; j++) {
                                 if (prinToConsole) {
-                                    System.out.print((j > 0 ? ",'" : "'") + rsmd.getColumnClassName(j + 1) + "'");
+                                    System.out.print((j > 0 ? "|'" : "'") + rsmd.getColumnLabel(j + 1) + "'");
                                 }
                             }
-                            if (prinToConsole) {
-                                System.out.print("\n\t},\n");
-                            }
-
-                            if (prinToConsole) {
-                                System.out.print("\tHeaderLabels{\n\t\t");
-                            }
-                            for (int j = 0; j < numberOfColumns; j++) {
-                                if (prinToConsole) {
-                                    System.out.print((j > 0 ? ",'" : "'") + rsmd.getColumnLabel(j + 1) + "'");
-                                }
-                            }
-                            if (prinToConsole) {
-                                System.out.print("\n\t},\n");
-                            }
-
-                            if (prinToConsole) {
-                                System.out.print("\tDataRows{");
+                            if (prinToConsole) {                                
+								System.out.print("\n--------------\n");
                             }
                             int numRows;
-                            for (numRows = 0; rs.next(); numRows++) {
-                                if (numRows > 0) {
-                                    if (prinToConsole) {
-                                        System.out.print(",");
-                                    }
-                                }
+                            for (numRows = 0; rs.next(); numRows++) {                                
                                 if (prinToConsole) {
-                                    System.out.print("\n\t\t{");
+                                    //System.out.print("\n\t\t{");
                                 }
                                 for (int j = 0; j < numberOfColumns; j++) {
 
                                     if (prinToConsole) {
+										
                                         Object o = rs.getObject(j + 1);
                                         if (o == null) {
-                                            System.out.print((j > 0 ? ", <NULL>" : "<NULL>"));
+                                            System.out.print((j > 0 ? "|NULL" : "NULL"));
                                         } else if (o.getClass().equals(String.class)) {
-                                            System.out.print((j > 0 ? "," : "") + "'" + rs.getString(j + 1) + "'");
+                                            System.out.print((j > 0 ? "|" : "") + "'" + rs.getString(j + 1) + "'");
                                         } else {
-                                            System.out.print((j > 0 ? "," : "") + rs.getString(j + 1));
+                                            System.out.print((j > 0 ? "|" : "") + rs.getString(j + 1));
                                         }
                                     }
                                 }
                                 if (prinToConsole) {
-                                    System.out.print(" }");
+									System.out.print("\n");
+                                    //System.out.print(" }");
                                 }
                             }
                             rs.close();
-                            if (prinToConsole) {
-                                System.out.print("\n\t}.size()=" + numRows + "\n");
+                            if (prinToConsole) {                                
+								System.out.print("--------------\n");
+								System.out.print(numRows+" rows.\n");
                             }
                             if (prinToConsole) {
-                                System.out.print("};\n");
+                                //System.out.print("};\n");
                             }
                         } else {
                             updateCount = sexec.getUpdateCount();
                             if (prinToConsole) {
-                                System.out.print(updateCount + " rows affected\n");
+								System.out.print("--------------\n");
+                                System.out.print(updateCount + " rows affected.\n");
                             }
                         }
                     } catch (Exception exExec) {
@@ -366,7 +355,7 @@ public class Main {
 		}catch(Exception e){
 			logger.log(Level.SEVERE, "->shellDB:", e);
 		}
-        logger.finer("shellDB: --------------");
+        logger.fine("shellDB: --------------");
 
         Connection conn = null;
 
@@ -375,7 +364,7 @@ public class Main {
             logger.fine("shellDB:OK, the DB exist !!");
             logger.fine("shellDB:Ready, Now read from stdin(is pipe?"+repeatInput+"), connectionForInit=" + conn);
             executeScriptFrom(is, rdbms, conn, continueWithErrors,prinToConsole, repeatInput );
-            logger.finer("-> EOF stdin, end");
+            logger.fine("-> EOF stdin, end");
 			exitStatus = 0;
         } catch (IOException ex) {
             logger.log(Level.SEVERE, "Something with the reading script:" + ex.getLocalizedMessage(), ex);
@@ -413,35 +402,40 @@ public class Main {
 		String argValue=null;
 			
         for(String arg: args){
-			logger.fine("-> arg["+arg+"]");
-			if(argName == null){
+			logger.fine("-> arg["+arg+"]");			
+			if( argName == null){
 				argName = arg;
-			} else{				
-				argValue = arg;
+			} else {
+				if(argValue == null){
+					argValue = arg;
 
-				logger.finer("\t-> "+argName+" = "+argValue);
-				if(argName.equals("-driverClass")){
-					driver   = argValue;
-					logger.finest("  ->driver="+driver);
-				} else if(argName.equals("-url")){
-					url      = argValue;
-					logger.finest("     ->url="+url);
-				} else if(argName.equals("-user")){
-					user     = argValue;
-					logger.finest("    ->user="+user);
-				} else if(argName.equals("-password")){
-					password = argValue;
-					logger.finest("->password="+password);
-				} else if(argName.equalsIgnoreCase("-printDBInfoOnStatup") && argValue.equals("true")){
-					printInfoDBOnStartup = true;
-					logger.finest("->printInfoDBOnStartup="+printInfoDBOnStartup);
-				} else if(argName.equalsIgnoreCase("-continueWithErrors")){
-					continueWithErrors=true;
-					logger.finest("->continueWithErrors=true");
+					logger.fine("\t["+argName+"] = ["+argValue+"]");
+					
+					if(argName.equals("-driverClass")){
+						driver   = argValue;
+						logger.fine("\t\t==>> driver=["+driver+"]");
+					} else if(argName.equals("-url")){
+						url      = argValue;
+						logger.fine("url=["+url+"]");
+					} else if(argName.equals("-user")){
+						user     = argValue;
+						logger.fine("\t\t==> user=["+user+"]");
+					} else if(argName.equals("-password")){
+						password = argValue;
+						logger.fine("\t\t==> password=["+password+"]");
+					} else if(argName.equalsIgnoreCase("-printDBInfoOnStatup") && argValue.equals("true")){
+						printInfoDBOnStartup = true;
+						logger.fine("\t\t==> printInfoDBOnStartup="+printInfoDBOnStartup);
+					} else if(argName.equalsIgnoreCase("-continueWithErrors")){
+						continueWithErrors=true;
+						logger.fine("\t\t==> continueWithErrors=true");
+					}
+					argName  = null;
+					argValue = null;		
+					logger.fine("\t<<------------");
 				}
-				argName  = null;
-				argValue = null;
 			}
+			
 			prevArgName = arg;
         }
 
@@ -476,6 +470,8 @@ public class Main {
 				rdbms = " derby";
 			} else if(driver.contains("oracle")){
 				rdbms = "oracle";
+			} else if(driver.contains("microsoft")){
+				rdbms = "MsSql";
 			}
 			
 			
@@ -495,7 +491,7 @@ public class Main {
 		System.err.println("\tBUILD  : \t"+vp.getProperty(BUILT_TIMESTAMP));
 		System.err.println("\tVERSION: \t"+vp.getProperty(PROJECT_VERSION));
         System.err.println("usage:\t");
-        System.err.println("\tcom.tracktopell.dbutil.sqlcommander.Main -driverClass=com.db.driver.ETC  \"-url=jdbc:db://127.0.0.1:80/db\" -user=xxxx -password=yyy");
+        System.err.println("\tcom.tracktopell.dbutil.sqlcommander.Main -driverClass com.db.driver.ETC  -ur \"jdbc:db://127.0.0.1:80/db\" -user xxxx -password yyy");
     }
 	
 	private static Properties loadVersionProperties(){
