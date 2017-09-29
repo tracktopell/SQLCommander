@@ -90,6 +90,11 @@ public class Main {
         schemas.close();
         ResultSet tablesRS = metaData.getTables(null, null, "%", null);
         System.out.println("Tables:");
+		
+		while (tablesRS.next()) {
+			System.out.println("\tTABLE ["+tablesRS.getString(1)+"]["+tablesRS.getString(2)+"]["+tablesRS.getString(3)+"]");
+		}
+		/*
         Statement statement = conn.createStatement();
         while (tablesRS.next()) {
             String schemaTableIter = tablesRS.getString(2);
@@ -168,8 +173,9 @@ public class Main {
 			resColumnsTable.close();
             
         }
+		*/
         tablesRS.close();
-
+		
         System.out.println("=======================================");
     }
 
@@ -300,10 +306,11 @@ public class Main {
                         }
                     } catch (Exception exExec) {
                         if (prinToConsole) {
-                            exExec.printStackTrace(System.err);
-                            //System.err.print("\t[x]:" + exExec.getMessage() + "\n");
+                            //exExec.printStackTrace(System.err);
+                            System.err.print("\t[x]:" + exExec.getMessage() + "\n");
                         }
                         if (!continueWithErrors) {
+							System.err.print("\t[^] not continue With Errors("+continueWithErrors+"), break");
                             break;
                         }
                     }
@@ -426,7 +433,7 @@ public class Main {
 					} else if(argName.equalsIgnoreCase("-printDBInfoOnStatup") && argValue.equals("true")){
 						printInfoDBOnStartup = true;
 						logger.fine("\t\t==> printInfoDBOnStartup="+printInfoDBOnStartup);
-					} else if(argName.equalsIgnoreCase("-continueWithErrors")){
+					} else if(argName.equalsIgnoreCase("-continueWithErrors") && argValue.equals("true")){
 						continueWithErrors=true;
 						logger.fine("\t\t==> continueWithErrors=true");
 					}
@@ -438,7 +445,9 @@ public class Main {
 			
 			prevArgName = arg;
         }
-
+		
+		printSplash();
+		
         if(driver == null){
             printUssage();
             System.exit(1);
@@ -485,11 +494,13 @@ public class Main {
 		System.exit(exitStatus);
     }
 
-    private static void printUssage() {
+	private static void printSplash() {
 		Properties vp=loadVersionProperties();
         System.err.println("\t----------------------------- Tracktopell : SQLCommander -----------------------------");      
 		System.err.println("\tBUILD  : \t"+vp.getProperty(BUILT_TIMESTAMP));
-		System.err.println("\tVERSION: \t"+vp.getProperty(PROJECT_VERSION));
+		System.err.println("\tVERSION: \t"+vp.getProperty(PROJECT_VERSION));        
+    }
+    private static void printUssage() {		
         System.err.println("usage:\t");
         System.err.println("\tcom.tracktopell.dbutil.sqlcommander.Main -driverClass com.db.driver.ETC  -ur \"jdbc:db://127.0.0.1:80/db\" -user xxxx -password yyy");
     }
