@@ -3,8 +3,10 @@ package com.tracktopell.dbutil.sqlcommander;
 import java.io.*;
 
 import java.sql.*;
-import java.util.Arrays;
-import java.util.Enumeration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -71,12 +73,12 @@ public class Main {
 
         logger.fine("getConnection:OK Connected to DB.");
         if(printInfoDBOnStartup){
-            printDBInfo(conn);
+            printDBInfo(conn,connectionProperties.getProperty(PARAM_CONNECTION_JDBC_USER));
         }
         return conn;
     }
 
-    private void printDBInfo(Connection conn) throws SQLException {
+    private void printDBInfo(Connection conn,String user) throws SQLException {
         DatabaseMetaData metaData = conn.getMetaData();
 
         System.out.println("\t=>>SchemaTerm:" + metaData.getSchemaTerm());
@@ -84,60 +86,45 @@ public class Main {
         System.out.println("Schemas:");
 
         ResultSet schemas = metaData.getSchemas();
+		String schemaTableIter=null;
         while (schemas.next()) {
-            System.out.println("\t=>>" + schemas.getString("TABLE_SCHEM") + ", " + schemas.getString("TABLE_CATALOG"));
+			if(schemas.getString("TABLE_SCHEM").equalsIgnoreCase(user)){
+				System.out.println("\t=>>" + schemas.getString("TABLE_SCHEM") + ", " + schemas.getString("TABLE_CATALOG"));
+				schemaTableIter = schemas.getString("TABLE_SCHEM");
+			}
         }
         schemas.close();
-        ResultSet tablesRS = metaData.getTables(null, null, "%", null);
+        ResultSet tablesRS = metaData.getTables(null, user, "%", null);
         System.out.println("Tables:");
-		
-		while (tablesRS.next()) {
-			System.out.println("\tTABLE ["+tablesRS.getString(1)+"]["+tablesRS.getString(2)+"]["+tablesRS.getString(3)+"]");
+		List<String> tableNames=new ArrayList<>();
+		while (tablesRS.next()) {			
+			tableNames.add(tablesRS.getString(3));
+			//System.out.println("\tTABLE ["+tablesRS.getString(2)+"."+tablesRS.getString(3)+"]");
 		}
-		/*
+		
         Statement statement = conn.createStatement();
-        while (tablesRS.next()) {
-            String schemaTableIter = tablesRS.getString(2);
-            String tableNameIter = tablesRS.getString(3);
-            if (schemaTableIter.toLowerCase().contains("sys")) {
-                continue;
-            }
-            System.out.print("\t" + schemaTableIter + "." + tableNameIter + "(");
-            ResultSet executeQuery = statement.executeQuery("SELECT * FROM " + schemaTableIter + "." + tableNameIter + " WHERE 1=2");
-            ResultSetMetaData emptyTableMetaData = executeQuery.getMetaData();
-            int columnCount = emptyTableMetaData.getColumnCount();
-            for (int columNumber = 1; columNumber <= columnCount; columNumber++) {
-                if (columNumber > 1) {
-                    System.out.println(",");
-                } else {
-                    System.out.println("");
-                }
-                int columnSize = emptyTableMetaData.getPrecision(columNumber);
-                int columnDD = emptyTableMetaData.getScale(columNumber);
-                int nullableFlag = emptyTableMetaData.isNullable(columNumber);
-                boolean autoIncrementFlag = emptyTableMetaData.isAutoIncrement(columNumber);
-
-                System.out.print("\t\t" + emptyTableMetaData.getColumnName(columNumber) + "  " + emptyTableMetaData.getColumnTypeName(columNumber));
-                if (columnSize > 0) {
-                    System.out.print(" ( " + columnSize);
-                    if (columnDD > 0) {
-
-                    }
-                    System.out.print(" )");
-                }
-                if (nullableFlag == 1) {
-                    System.out.print(" NULL");
-                }
-                if (autoIncrementFlag) {
-                    System.out.print(" AUTOINCREMENT");
-                }
-            }
-            System.out.println();
-            System.out.println("\t);");
-            executeQuery.close();
-
-            
-			ResultSet resColumnsTable = metaData.getColumns(null, schemaTableIter, tableNameIter, null);
+		
+        for(String tableNameIter: tableNames){
+			
+            //System.out.print("\t" + schemaTableIter + "." + tableNameIter + "(");
+			System.out.print("\t" + tableNameIter + "(");
+			
+			ResultSet rsFKs = metaData.getImportedKeys(null, schemaTableIter, tableNameIter);
+			HashMap<String,String> tableFKs= new HashMap<>();
+			while(rsFKs.next()){
+				tableFKs.put(rsFKs.getString("FKCOLUMN_NAME"), rsFKs.getString("PKTABLE_NAME")+"."+rsFKs.getString("PKCOLUMN_NAME"));
+			}
+			rsFKs.close();
+			
+			ResultSet rsPKs = metaData.getPrimaryKeys(null, schemaTableIter, tableNameIter);
+			HashSet<String> tablePKs= new HashSet<>();
+			while(rsPKs.next()){
+				tablePKs.add(rsPKs.getString("COLUMN_NAME"));
+			}
+			rsPKs.close();
+			
+        	ResultSet resColumnsTable = metaData.getColumns(null, schemaTableIter, tableNameIter, null);
+			
 			for(int columnCounter = 0;resColumnsTable.next();columnCounter++) {
 				if(columnCounter>0){
 					System.out.println(",");
@@ -146,13 +133,20 @@ public class Main {
 				}
 				
 				
-				System.out.print("\t\t" + 
-						resColumnsTable.getString("COLUMN_NAME")+ "  " + resColumnsTable.getString("TYPE_NAME"));
 				
 				int columnSize = resColumnsTable.getInt("COLUMN_SIZE");
 				int columnDD   = resColumnsTable.getInt("DECIMAL_DIGITS");
 				int nullableFlag = resColumnsTable.getInt("NULLABLE");
 				boolean autoIncrementFlag = resColumnsTable.getString("IS_AUTOINCREMENT").equalsIgnoreCase("yes");
+				boolean isPK              = tablePKs.contains(resColumnsTable.getString("COLUMN_NAME"));
+				
+				if(isPK) {
+					System.out.print("\t\t->");
+				} else{
+					System.out.print("\t\t  ");
+				}
+				
+				System.out.print(resColumnsTable.getString("COLUMN_NAME")+ "  " + resColumnsTable.getString("TYPE_NAME"));
 				
 				if(columnSize>0) {
 					System.out.print(" ( " + columnSize);
@@ -164,22 +158,31 @@ public class Main {
 				if(nullableFlag ==1) {
 					System.out.print(" NULL");
 				}
+				if(isPK) {
+					System.out.print(" PRIMARY KEY");
+				}
 				if(autoIncrementFlag) {
 					System.out.print(" AUTOINCREMENT");
-				}				
+				}
+				
+				
+				String stringFKs = tableFKs.get(resColumnsTable.getString("COLUMN_NAME"));
+				if(stringFKs != null){
+					System.out.print(" => "+stringFKs);
+				}
 			}
 			System.out.println();
 			System.out.println("\t);");
 			resColumnsTable.close();
             
         }
-		*/
-        tablesRS.close();
 		
-        System.out.println("=======================================");
+        tablesRS.close();
+		System.out.println("\tTABLES COUNT:"+tableNames.size());
+        System.out.println("\t=======================================");
     }
 
-    public void executeScriptFrom(InputStream is,String rdbmsPrompt, Connection conn, boolean continueWithErrors, boolean prinToConsole, boolean repeatInput)
+    public void executeScriptFrom(InputStream is,String rdbmsPrompt, Connection conn, boolean prinToConsole, boolean repeatInput)
             throws SQLException, IOException {
 
         BufferedReader brInput = null;
@@ -192,7 +195,7 @@ public class Main {
         int numberOfColumns;
         
         prinToConsole = true;
-
+		int errCounter=0;
         try {
             conn.setAutoCommit(true);
             brInput = new BufferedReader(new InputStreamReader(is));
@@ -212,7 +215,7 @@ public class Main {
                 if (sqlInput.trim().toLowerCase().equals("exit")) {
                     break;
                 } else if (sqlInput.trim().toLowerCase().equals("!dbinfo")) {
-                    printDBInfo(conn);
+                    printDBInfo(conn, connectionProperties.getProperty(PARAM_CONNECTION_JDBC_USER));
                     if (prinToConsole) {
                         System.out.println("");
                         System.out.print(promt1);
@@ -310,9 +313,11 @@ public class Main {
                             System.err.print("\t[x]:" + exExec.getMessage() + "\n");
                         }
                         if (!continueWithErrors) {
-							System.err.print("\t[^] not continue With Errors("+continueWithErrors+"), break");
+							System.err.println("\t[^] not continue With Errors("+continueWithErrors+"), break");
                             break;
-                        }
+                        } else {
+							errCounter++;							
+						}
                     }
                     fullSql = "";
                     if (prinToConsole) {
@@ -327,6 +332,9 @@ public class Main {
             }
             if (prinToConsole) {
 				System.out.println("{EOF}");
+				if(errCounter>0){
+					System.err.println("\t[X] Error Counter:"+errCounter);
+				}
                 System.out.println("Script executed.");
             }
         } catch (SQLException ex) {
@@ -344,11 +352,11 @@ public class Main {
         }
     }
 
-	public int shellDB(boolean continueWithErrors) {
-		return shellDB(System.in, continueWithErrors);
+	public int shellDB() {
+		return shellDB(System.in);
 	}
 	
-    public int shellDB(InputStream is,boolean continueWithErrors) {
+    public int shellDB(InputStream is) {
 		boolean prinToConsole = true;
 		boolean repeatInput   = false;
 		Console console = null;
@@ -370,7 +378,7 @@ public class Main {
             conn = getConnection();
             logger.fine("shellDB:OK, the DB exist !!");
             logger.fine("shellDB:Ready, Now read from stdin(is pipe?"+repeatInput+"), connectionForInit=" + conn);
-            executeScriptFrom(is, rdbms, conn, continueWithErrors,prinToConsole, repeatInput );
+            executeScriptFrom(is, rdbms, conn, prinToConsole, repeatInput );
             logger.fine("-> EOF stdin, end");
 			exitStatus = 0;
         } catch (IOException ex) {
@@ -395,13 +403,15 @@ public class Main {
 		return exitStatus;
     }
 
+	private static boolean continueWithErrors=false;
+	
     public static void main(String args[]) {
         Main dbInstaller;
         String driver   = null;
         String url      = null;
         String user     = null;        
         String password = null;
-		boolean continueWithErrors=false;
+
         
         boolean printInfoDBOnStartup = false;        
 		String prevArgName =null;
@@ -487,7 +497,7 @@ public class Main {
             dbInstaller = new Main(parameters4CreateAndExecute);
             dbInstaller.setPrintInfoDBOnStartup(printInfoDBOnStartup);            
             logger.fine("----------------------------- SQLCommanderPrompt -----------------------------");
-            exitStatus = dbInstaller.shellDB(continueWithErrors);
+            exitStatus = dbInstaller.shellDB();
         } catch (Exception ex) {
             ex.printStackTrace(System.err);
         } 
