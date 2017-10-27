@@ -512,7 +512,7 @@ public class Main {
     }
     private static void printUssage() {		
         System.err.println("usage:\t");
-        System.err.println("\tcom.tracktopell.dbutil.sqlcommander.Main -driverClass com.db.driver.ETC  -ur \"jdbc:db://127.0.0.1:80/db\" -user xxxx -password yyy");
+        System.err.println("\tcom.tracktopell.dbutil.sqlcommander.Main -driverClass com.db.driver.ETC  -ur \"jdbc:db://127.0.0.1:80/db\" -user xxxx -password yyy [ -printDBInfoOnStatup [true|false] ] [-continueWithErrors [true|false]]");
     }
 	
 	private static Properties loadVersionProperties(){
