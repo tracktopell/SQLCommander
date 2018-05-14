@@ -1,3 +1,8 @@
 # SQLCommander
 basic console ( stdin / stdout ) jdbc client { mysql , debry, ms-sqlserver, postgress } 
-already carry-supported in claspath drivers.
+
+Already carry-supported in claspath drivers.
+
+JDBC-Driver class
+SQLServer
+    com.microsoft.sqlserver.jdbc.SQLServerDriver
