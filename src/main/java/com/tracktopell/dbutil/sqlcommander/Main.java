@@ -101,6 +101,9 @@ public class Main {
 						logger.info("schemma=["+schemma+"]");
 					} else if(argName.equals("-fs")){
 						fieldSeprator= argValue;
+						if(fieldSeprator.contains("\\t")){
+							fieldSeprator = fieldSeprator.replace("\\t","\t");
+						}
 						logger.info("fieldSeprator=["+fieldSeprator+"]");
 					} else if(argName.equals("-sd")){
 						stringDelimitator= argValue;
@@ -112,8 +115,8 @@ public class Main {
 						printHeaders = false;
 						logger.info("printHeaders="+printHeaders);
 					} else if(argName.equalsIgnoreCase("-M") && argValue.equals("false")){
-						printHeaders = false;
-						logger.info("printHeaders="+printHeaders);
+						printMetadata = false;
+						logger.info("printMetadata="+printMetadata);
 					} else if(argName.equals("-l")){
 						Level myLevel = null;
 						myLevel = 
@@ -421,13 +424,13 @@ public class Main {
 //								System.out.print("\n--------------\n");
 //							}
 							if(printMetadata){
-								for (int j = 0; j < numberOfColumns; j++) {
-									if (prinToConsole) {
-										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + rsmd.getColumnClassName(j + 1) + stringDelimitator);
-									}
+								for (int j = 0; j < numberOfColumns; j++) {								
+									System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + rsmd.getColumnClassName(j + 1) + stringDelimitator);									
 								}
 								if (prinToConsole) {           
 									System.out.print("\n--------------\n");
+								}else {
+									System.out.println();
 								}
 							}
 							if(printHeaders){
@@ -532,11 +535,11 @@ public class Main {
 			} else {
 				if(System.in.available()>0){
 					// IS PIPED STREAM
-					repeatInput   = false;
+					repeatInput   = true;
 					prinToConsole = true;
 				} else {
 					// IS REGULAR LIVE CONSOLE STDIN
-					repeatInput   = true;
+					repeatInput   = false;
 					prinToConsole = true;
 				}				
 			}
