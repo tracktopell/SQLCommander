@@ -1,6 +1,8 @@
 package com.tracktopell.dbutil.sqlcommander;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.attribute.BasicFileAttributes;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -28,15 +30,169 @@ public class Main {
     public static final String PARAM_CONNECTION_JDBC_CATALOG  = "jdbc.catalog";
     public static final String PARAM_CONNECTION_JDBC_SCHEMMA  = "jdbc.schemma";
 
+	public static final String DEFAULT_FIELD_SEPARATOR    = "|";
+	public static final String DEFAULT_STRING_DELIMITATOR = "'";
+	
     protected Properties connectionProperties;
-    protected boolean printInfoDBOnStartup = false;	
+    protected static boolean printInfoDBOnStartup = false;
+	protected static boolean printMetadata		  = true;
+    protected static boolean printHeaders		  = true;	
+	protected static boolean quietExport          = false;
+	protected static String fieldSeprator      = DEFAULT_FIELD_SEPARATOR;
+	protected static String stringDelimitator  = DEFAULT_STRING_DELIMITATOR;
+	
 	protected static String rdbms = "[SQL]";
-
     protected static Logger logger = Logger.getLogger(Main.class.getSimpleName());
+	private static boolean continueWithErrors=false;
 
-    public Main(Properties p) throws IOException {
-        logger.fine("init(): try to load properties :" + p);
+	public Main(Properties p) throws IOException {
+        logger.info("init(): try to load properties :" + p);
         this.connectionProperties = p;
+    }
+
+    public static void main(String args[]) {
+        Main sqlCommanderMain;
+        String driver   = null;
+        String url      = null;
+        String user     = null;        
+        String password = null;
+        String catalog  = null;
+        String schemma  = null;
+        	
+		String prevArgName =null;
+		String argName =null;
+		String argValue=null;
+		
+		logger.setLevel(Level.WARNING);
+		logger.info("----------------[Main]------------");
+        for(String arg: args){
+			logger.info("-> arg["+arg+"]");
+			if( argName == null){
+				argName = arg;
+			} else {
+				if(argValue == null){
+					argValue = arg;
+
+					logger.info("\t["+argName+"] = ["+argValue+"]");
+					
+					if(argName.equals("-driverClass")){
+						driver   = argValue;
+						logger.info("\t\t==>> driver=["+driver+"]");
+					} else if(argName.equals("-url")){
+						url      = argValue;
+						logger.info("url=["+url+"]");
+					} else if(argName.equals("-user")){
+						user     = argValue;
+						logger.info("\t\t==> user=["+user+"]");
+					} else if(argName.equals("-password")){
+						password = argValue;
+						logger.info("\t\t==> password=["+password+"]");
+					} else if(argName.equalsIgnoreCase("-printDBInfoOnStatup") && argValue.equals("true")){
+						printInfoDBOnStartup = true;
+						logger.info("\t\t==> printInfoDBOnStartup="+printInfoDBOnStartup);
+					} else if(argName.equalsIgnoreCase("-continueWithErrors") && argValue.equals("true")){
+						continueWithErrors=true;
+						logger.info("\t\t==> continueWithErrors=true");
+					} else if(argName.equals("-catalog")){
+						catalog      = argValue;
+						logger.info("catalog=["+catalog+"]");
+					} else if(argName.equals("-schemma")){
+						schemma      = argValue;
+						logger.info("schemma=["+schemma+"]");
+					} else if(argName.equals("-fs")){
+						fieldSeprator= argValue;
+						logger.info("fieldSeprator=["+fieldSeprator+"]");
+					} else if(argName.equals("-sd")){
+						stringDelimitator= argValue;
+						logger.info("fieldSeprator=["+fieldSeprator+"]");
+					} else if(argName.equalsIgnoreCase("-q") && argValue.equals("true")){
+						quietExport = true;
+						logger.info("quietExport="+quietExport);
+					} else if(argName.equalsIgnoreCase("-H") && argValue.equals("false")){
+						printHeaders = false;
+						logger.info("printHeaders="+printHeaders);
+					} else if(argName.equalsIgnoreCase("-M") && argValue.equals("false")){
+						printHeaders = false;
+						logger.info("printHeaders="+printHeaders);
+					} else if(argName.equals("-l")){
+						Level myLevel = null;
+						myLevel = 
+								argValue.equalsIgnoreCase("FINEST")?	Level.FINEST:
+								argValue.equalsIgnoreCase("FINER")?		Level.FINER:
+								argValue.equalsIgnoreCase("FINE")?		Level.FINE:
+								argValue.equalsIgnoreCase("INFO")?		Level.INFO:
+								argValue.equalsIgnoreCase("SEVERE")?	Level.SEVERE:
+								argValue.equalsIgnoreCase("WARNING")?	Level.WARNING:
+								argValue.equalsIgnoreCase("CONFIG")?	Level.CONFIG:
+								argValue.equalsIgnoreCase("OFF")?		Level.OFF:
+																		Level.WARNING;
+						logger.setLevel(myLevel);
+					} 
+					
+					argName  = null;
+					argValue = null;		
+					logger.info("\t<<------------");
+				}
+			}
+			
+			prevArgName = arg;
+        }
+		
+		if(!quietExport){
+			printSplash();
+		}
+		
+        if(driver == null){
+            printUssage();
+            System.exit(1);
+        }
+        if(url == null){
+            printUssage();
+            System.exit(1);
+        }
+        if(user == null){
+            printUssage();
+            System.exit(1);
+        }
+        if(password == null){
+            printUssage();
+            System.exit(1);
+        }
+        
+        Properties parameters4CreateAndExecute=new Properties();
+        
+        parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_CLASS_DRIVER, driver);
+        parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_URL         , url);
+        parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_USER        , user);
+        parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_PASSWORD    , password);
+        if(catalog!=null && !catalog.equalsIgnoreCase("null")){
+            parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_CATALOG , catalog);
+        }
+        if(schemma!=null && !schemma.equalsIgnoreCase("null")){
+            parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_SCHEMMA , schemma);
+        }
+        int exitStatus = 0;
+        try {
+			if(driver.contains("mysql")){
+				rdbms = " MySQL";
+			} else if(driver.contains("derby")){
+				rdbms = " Derby";
+			} else if(driver.contains("oracle")){
+				rdbms = "Oracle";
+			} else if(driver.contains("microsoft")){
+				rdbms = " MsSQL";
+			} else {
+				rdbms = "   SQL";
+			}
+			
+            sqlCommanderMain = new Main(parameters4CreateAndExecute);
+            logger.info("----------------------------- SQLCommanderPrompt -----------------------------");
+            exitStatus = sqlCommanderMain.shellDB();
+        } catch (Exception ex) {
+            ex.printStackTrace(System.err);
+        }
+        //System.err.println(" <<< "+exitStatus);
+		System.exit(exitStatus);
     }
 
     public void setPrintInfoDBOnStartup(boolean printInfoDBOnStartup) {
@@ -46,11 +202,19 @@ public class Main {
     public boolean isPrintInfoDBOnStartup() {
         return printInfoDBOnStartup;
     }
-    
+
+	public void setQuietExport(boolean quietExport) {
+		this.quietExport = quietExport;
+	}
+
+	public boolean isQuietExport() {
+		return quietExport;
+	}
+
     protected Connection getConnection() throws IllegalStateException, SQLException {
         Connection conn = null;
         try {
-            logger.fine("getConnection: ...try get Connection (using " + connectionProperties + ")for Create DB.");
+            logger.info("getConnection: ...try get Connection (using " + connectionProperties + ")for Create DB.");
             Class.forName(connectionProperties.getProperty(PARAM_CONNECTION_JDBC_CLASS_DRIVER)).newInstance();
         } catch (ClassNotFoundException ex) {
             throw new IllegalStateException(ex.getMessage());
@@ -60,12 +224,12 @@ public class Main {
             throw new IllegalStateException(ex.getMessage());
         }
 
-        logger.fine("getConnection:Ok, Loaded JDBC Driver.");
+        logger.info("getConnection:Ok, Loaded JDBC Driver.");
         String urlConnection = connectionProperties.getProperty("jdbc.url");
 
         if (urlConnection.contains("${db.name}")) {
             urlConnection = urlConnection.replace("${db.name}", connectionProperties.getProperty("db.name"));
-            logger.fine("getConnection:replacement for variable db.name, now urlConnection=" + urlConnection);
+            logger.info("getConnection:replacement for variable db.name, now urlConnection=" + urlConnection);
         }
 
         conn = DriverManager.getConnection(
@@ -73,7 +237,7 @@ public class Main {
                 connectionProperties.getProperty(PARAM_CONNECTION_JDBC_USER),
                 connectionProperties.getProperty(PARAM_CONNECTION_JDBC_PASSWORD));
 
-        logger.fine("getConnection:OK Connected to DB.");
+        logger.info("getConnection:OK Connected to DB.");
         if(printInfoDBOnStartup){
             printDBInfo(conn,connectionProperties.getProperty(PARAM_CONNECTION_JDBC_CATALOG),connectionProperties.getProperty(PARAM_CONNECTION_JDBC_SCHEMMA));
         }
@@ -82,8 +246,9 @@ public class Main {
 
     private void printDBInfo(Connection conn,String catalog,String schemma) throws SQLException {
         DatabaseMetaData metaData = conn.getMetaData();
-
-        System.out.println("\t=>>SchemaTerm:" + metaData.getSchemaTerm());
+		
+		System.out.println("\t=>>SchemaTerm:" + metaData.getSchemaTerm());
+		
         ResultSet schemsRS = metaData.getSchemas();
         while (schemsRS.next()) {
             System.out.println("=>Schemas: TABLE_SCHEM="+schemsRS.getString("TABLE_SCHEM")+", TABLE_CATALOG="+schemsRS.getString("TABLE_CATALOG"));
@@ -190,16 +355,14 @@ public class Main {
 		String promt1   = rdbmsPrompt+"> ";
 		String promt2   = "      >>";
         int updateCount;
-        int numberOfColumns;
-        
-        prinToConsole = true;
+        int numberOfColumns;       
 		int errCounter=0;
         try {
             conn.setAutoCommit(true);
             brInput = new BufferedReader(new InputStreamReader(is));
 
             if (prinToConsole) {
-                System.out.print(promt1);
+				System.out.print(promt1);
             }
             Statement sexec = conn.createStatement();
 
@@ -210,8 +373,15 @@ public class Main {
                         System.out.println(sqlInput);
                     }
                 }
-                if (sqlInput.trim().toLowerCase().equalsIgnoreCase("exit")) {
+                if (sqlInput.trim().toLowerCase().startsWith("exit")) {
                     break;
+                } else if (sqlInput.trim().toLowerCase().equalsIgnoreCase("!help")) {
+                    if (prinToConsole) {
+                        System.out.println("\t!help    Prints this helpful help to get help ;)");
+						System.out.println("\t!dbinfo  Prints DB metadata");
+                        System.out.print(promt1);
+                    }
+                    continue;
                 } else if (sqlInput.trim().toLowerCase().equalsIgnoreCase("!dbinfo")) {
                     printDBInfo(conn,connectionProperties.getProperty(PARAM_CONNECTION_JDBC_CATALOG),connectionProperties.getProperty(PARAM_CONNECTION_JDBC_SCHEMMA));
                     if (prinToConsole) {
@@ -219,8 +389,7 @@ public class Main {
                         System.out.print(promt1);
                     }
                     continue;
-                }
-                if (sqlInput.trim().length() == 0 || sqlInput.startsWith("--")) {
+                } else if (sqlInput.trim().length() == 0 || sqlInput.startsWith("--")) {
                     if (prinToConsole) {
                         System.out.print(promt1);
                     }
@@ -238,66 +407,60 @@ public class Main {
                             resultExecution = callSt.execute();
                             rs = resultExecution ? callSt.getResultSet() : null;
                         } else {
+							logger.finest("  QUERY: ->"+fullSql+"<-");
                             resultExecution = sexec.execute(fullSql);
+							logger.finest(" RESULT: "+resultExecution);
                             rs = resultExecution ? sexec.getResultSet() : null;
                         }
 
                         if (resultExecution && rs != null) {
-
-                            rsmd = rs.getMetaData();
-                            numberOfColumns = rsmd.getColumnCount();
-                            if (prinToConsole) {                                
-								System.out.print("\n--------------\n");
-                            }
-                            
-                            for (int j = 0; j < numberOfColumns; j++) {
-                                if (prinToConsole) {
-                                    System.out.print((j > 0 ? "|'" : "'") + rsmd.getColumnClassName(j + 1) + "'");
-                                }
-                            }
-                            if (prinToConsole) {           
-								System.out.print("\n--------------\n");
-                            }
-                            for (int j = 0; j < numberOfColumns; j++) {
-                                if (prinToConsole) {
-                                    System.out.print((j > 0 ? "|'" : "'") + rsmd.getColumnLabel(j + 1) + "'");
-                                }
-                            }
-                            if (prinToConsole) {                                
-								System.out.print("\n--------------\n");
-                            }
+							
+							rsmd = rs.getMetaData();
+							numberOfColumns = rsmd.getColumnCount();
+//							if (prinToConsole) {                                
+//								System.out.print("\n--------------\n");
+//							}
+							if(printMetadata){
+								for (int j = 0; j < numberOfColumns; j++) {
+									if (prinToConsole) {
+										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + rsmd.getColumnClassName(j + 1) + stringDelimitator);
+									}
+								}
+								if (prinToConsole) {           
+									System.out.print("\n--------------\n");
+								}
+							}
+							if(printHeaders){
+								for (int j = 0; j < numberOfColumns; j++) {																
+									System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + rsmd.getColumnLabel(j + 1) + stringDelimitator);
+								}
+								if (prinToConsole) {                                
+									System.out.print("\n--------------\n");
+								} else {
+									System.out.println();
+								}
+							}
                             int numRows;
-                            for (numRows = 0; rs.next(); numRows++) {                                
-                                if (prinToConsole) {
-                                    //System.out.print("\n\t\t{");
-                                }
-                                for (int j = 0; j < numberOfColumns; j++) {
+                            for (numRows = 0; rs.next(); numRows++) {                                                                
+                                for (int j = 0; j < numberOfColumns; j++) {	
+									Object o = rs.getObject(j + 1);
+									logger.finest(" DATA: ->"+o+"<-");
+									if (o == null) {
+										System.out.print((j > 0 ? fieldSeprator + "NULL" : "NULL"));
+									} else if (o.getClass().equals(String.class)) {
+										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + o.toString() + stringDelimitator);
+									} else {
+										System.out.print((j > 0 ? fieldSeprator : "") + o.toString());
+									}
 
-                                    if (prinToConsole) {
-										
-                                        Object o = rs.getObject(j + 1);
-                                        if (o == null) {
-                                            System.out.print((j > 0 ? "|NULL" : "NULL"));
-                                        } else if (o.getClass().equals(String.class)) {
-                                            System.out.print((j > 0 ? "|" : "") + "'" + rs.getString(j + 1) + "'");
-                                        } else {
-                                            System.out.print((j > 0 ? "|" : "") + rs.getString(j + 1));
-                                        }
-                                    }
-                                }
-                                if (prinToConsole) {
-									System.out.print("\n");
-                                    //System.out.print(" }");
-                                }
+                                }                                
+								System.out.println();
                             }
                             rs.close();
                             if (prinToConsole) {                                
 								System.out.print("--------------\n");
 								System.out.print(numRows+" rows.\n");
-                            }
-                            if (prinToConsole) {
-                                //System.out.print("};\n");
-                            }
+                            }                            
                         } else {
                             updateCount = sexec.getUpdateCount();
                             if (prinToConsole) {
@@ -355,35 +518,48 @@ public class Main {
 	}
 	
     public int shellDB(InputStream is) {
-		boolean prinToConsole = true;
+		boolean prinToConsole = false;
 		boolean repeatInput   = false;
-		Console console = null;
+		
 		int exitStatus = -1;
 		try{
-			console = System.console();
-			logger.fine("shellDB: console = "+console);
-			if(console == null){
-				repeatInput   = true;
+			logger.info("shellDB: System.in.markSupported="+System.in.markSupported());			
+			logger.info("shellDB: System.in.available    ="+System.in.available());			
+			
+			if(quietExport){
+				repeatInput   = false;
+				prinToConsole = false;
+			} else {
+				if(System.in.available()>0){
+					// IS PIPED STREAM
+					repeatInput   = false;
+					prinToConsole = true;
+				} else {
+					// IS REGULAR LIVE CONSOLE STDIN
+					repeatInput   = true;
+					prinToConsole = true;
+				}				
 			}
 		}catch(Exception e){
 			logger.log(Level.SEVERE, "->shellDB:", e);
 		}
-        logger.fine("shellDB: --------------");
+        logger.info("shellDB: --------------");
 
         Connection conn = null;
         int errCounter=0;
         try {
             conn = getConnection();
-            logger.fine("shellDB:OK, the DB exist !!");
-            logger.fine("shellDB:Ready, Now read from stdin(is pipe?"+repeatInput+"), connectionForInit=" + conn);
+            logger.info("shellDB:OK, the DB exist !!");
+						
+			logger.info("shellDB:Ready, Now read from stdin(is pipe?"+repeatInput+"), prinToConsole="+prinToConsole+", quietExport="+quietExport+", connectionForInit=" + conn);
             errCounter = executeScriptFrom(is, rdbms, conn, prinToConsole, repeatInput );
-            logger.fine("-> executeScriptFrom: errCounter="+errCounter);
+            logger.info("-> executeScriptFrom: errCounter="+errCounter);
             if(errCounter == 0){
                 exitStatus = 0;
             } else{
                 exitStatus = 4;
             }
-            logger.fine("-> EOF stdin, end");
+            logger.info("-> EOF stdin, end");
 			
         } catch (IOException ex) {
             logger.log(Level.SEVERE, "Something with the reading script:" + ex.getLocalizedMessage(), ex);
@@ -407,123 +583,6 @@ public class Main {
 		return exitStatus;
     }
 
-	private static boolean continueWithErrors=false;
-	
-    public static void main(String args[]) {
-        Main sqlCommanderMain;
-        String driver   = null;
-        String url      = null;
-        String user     = null;        
-        String password = null;
-        String catalog  = null;
-        String schemma  = null;
-
-        
-        boolean printInfoDBOnStartup = false;        
-		String prevArgName =null;
-		String argName =null;
-		String argValue=null;
-			
-        for(String arg: args){
-			logger.fine("-> arg["+arg+"]");			
-			if( argName == null){
-				argName = arg;
-			} else {
-				if(argValue == null){
-					argValue = arg;
-
-					logger.fine("\t["+argName+"] = ["+argValue+"]");
-					
-					if(argName.equals("-driverClass")){
-						driver   = argValue;
-						logger.fine("\t\t==>> driver=["+driver+"]");
-					} else if(argName.equals("-url")){
-						url      = argValue;
-						logger.fine("url=["+url+"]");
-					} else if(argName.equals("-user")){
-						user     = argValue;
-						logger.fine("\t\t==> user=["+user+"]");
-					} else if(argName.equals("-password")){
-						password = argValue;
-						logger.fine("\t\t==> password=["+password+"]");
-					} else if(argName.equalsIgnoreCase("-printDBInfoOnStatup") && argValue.equals("true")){
-						printInfoDBOnStartup = true;
-						logger.fine("\t\t==> printInfoDBOnStartup="+printInfoDBOnStartup);
-					} else if(argName.equalsIgnoreCase("-continueWithErrors") && argValue.equals("true")){
-						continueWithErrors=true;
-						logger.fine("\t\t==> continueWithErrors=true");
-					} else if(argName.equals("-catalog")){
-						catalog      = argValue;
-						logger.fine("catalog=["+catalog+"]");
-					} else if(argName.equals("-schemma")){
-						schemma      = argValue;
-						logger.fine("schemma=["+schemma+"]");
-					}
-					argName  = null;
-					argValue = null;		
-					logger.fine("\t<<------------");
-				}
-			}
-			
-			prevArgName = arg;
-        }
-		
-		printSplash();
-		
-        if(driver == null){
-            printUssage();
-            System.exit(1);
-        }
-        if(url == null){
-            printUssage();
-            System.exit(1);
-        }
-        if(user == null){
-            printUssage();
-            System.exit(1);
-        }
-        if(password == null){
-            printUssage();
-            System.exit(1);
-        }
-        
-        Properties parameters4CreateAndExecute=new Properties();
-        
-        parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_CLASS_DRIVER, driver);
-        parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_URL         , url);
-        parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_USER        , user);
-        parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_PASSWORD    , password);
-        if(catalog!=null && !catalog.equalsIgnoreCase("null")){
-            parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_CATALOG , catalog);
-        }
-        if(schemma!=null && !schemma.equalsIgnoreCase("null")){
-            parameters4CreateAndExecute.put(PARAM_CONNECTION_JDBC_SCHEMMA , schemma);
-        }
-        int exitStatus = 0;
-        try {
-			if(driver.contains("mysql")){
-				rdbms = " MySQL";
-			} else if(driver.contains("derby")){
-				rdbms = " Derby";
-			} else if(driver.contains("oracle")){
-				rdbms = "Oracle";
-			} else if(driver.contains("microsoft")){
-				rdbms = " MsSQL";
-			} else {
-				rdbms = "   SQL";
-			}
-			
-            sqlCommanderMain = new Main(parameters4CreateAndExecute);
-            sqlCommanderMain.setPrintInfoDBOnStartup(printInfoDBOnStartup);            
-            logger.fine("----------------------------- SQLCommanderPrompt -----------------------------");
-            exitStatus = sqlCommanderMain.shellDB();
-        } catch (Exception ex) {
-            ex.printStackTrace(System.err);
-        }
-        //System.err.println(" <<< "+exitStatus);
-		System.exit(exitStatus);
-    }
-
 	private static void printSplash() {
 		Properties vp=loadVersionProperties();
         System.err.println("\t----------------------------- Tracktopell : SQLCommander -----------------------------");      
@@ -531,8 +590,21 @@ public class Main {
 		System.err.println("\tVERSION: \t"+vp.getProperty(PROJECT_VERSION));        
     }
     private static void printUssage() {		
-        System.err.println("usage:\t");
-        System.err.println("\tcom.tracktopell.dbutil.sqlcommander.Main -driverClass com.db.driver.ETC  -ur \"jdbc:db://127.0.0.1:80/db\" -user xxxx -password yyy [ -printDBInfoOnStatup [true|false] ] [-continueWithErrors [true|false]] [-catalog=CATALOG] [-schemma=SCHEMMA]");
+		System.err.println();
+		System.err.println("     Full usage:\t");
+        System.err.println("\t  -driverClass jdbc.class.name.driver             -url \"jdbc:rdbs://host:port/DATABASE\" -user USER -password SECRET ");
+		System.err.println("\t                                                  [-catalog CATALOG]   [-schemma SCHEMMA]");
+		System.err.println("\t                                                  [-printDBInfoOnStatup true|false] [-continueWithErrors true|false] ");
+		System.err.println("\t                                                  [-fs \"|\"] [-sd \"'\"] [-q true|false]");
+		System.err.println("\t                                                  [-M  true|false] [-H true|false] [-l FINE|INFO|WARRINIG]");
+		System.err.println();
+		System.err.println("CSV export usage:\t");
+        System.err.println("\t  -driverClass jdbc.class.name.driver             -url \"jdbc:rdbs://host:port/DATABASE\"       -user USER -password SECRET -fs \",\" -sd \"\" -q true -M false -H false");
+		System.err.println();
+        System.err.println("   Common usage:\t");
+        System.err.println("\t  -driverClass com.mysql.jdbc.Driver              -url \"jdbc:mysql://host:3306/DATABASE\"      -user USER -password SECRET");		
+		System.err.println("\t  -driverClass oracle.jdbc.driver.OracleDriver    -url \"jdbc:oracle:thin:@host:1521:DATABASE\" -user USER -password SECRET");
+		System.err.println("\t  -driverClass org.apache.derby.jdbc.ClientDriver -url \"jdbc:derby://host:1527/DATABASE\"      -user USER -password SECRET");
     }
 	
 	private static Properties loadVersionProperties(){
