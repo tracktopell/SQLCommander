@@ -184,6 +184,8 @@ public class Main {
 				rdbms = "Oracle";
 			} else if(driver.contains("microsoft")){
 				rdbms = " MsSQL";
+			} else if(driver.contains("postgresql")){
+				rdbms = " PG-SQL";
 			} else {
 				rdbms = "   SQL";
 			}
@@ -589,6 +591,7 @@ public class Main {
 	private static void printSplash() {
 		Properties vp=loadVersionProperties();
         System.err.println("\t----------------------------- Tracktopell : SQLCommander -----------------------------");      
+        System.err.println("\t------------------ https://github.com/tracktopell/SQLCommander.git -------------------");
 		System.err.println("\tBUILD  : \t"+vp.getProperty(BUILT_TIMESTAMP));
 		System.err.println("\tVERSION: \t"+vp.getProperty(PROJECT_VERSION));        
     }
@@ -597,17 +600,18 @@ public class Main {
 		System.err.println("     Full usage:\t");
         System.err.println("\t  -driverClass jdbc.class.name.driver             -url \"jdbc:rdbs://host:port/DATABASE\" -user USER -password SECRET ");
 		System.err.println("\t                                                  [-catalog CATALOG]   [-schemma SCHEMMA]");
-		System.err.println("\t                                                  [-printDBInfoOnStatup true|false] [-continueWithErrors true|false] ");
-		System.err.println("\t                                                  [-fs \"|\"] [-sd \"'\"] [-q true|false]");
-		System.err.println("\t                                                  [-M  true|false] [-H true|false] [-l FINE|INFO|WARRINIG]");
+		System.err.println("\t                                                  [-printDBInfoOnStartup true|false]   [-continueWithErrors true|false] ");
+		System.err.println("\t                                                  [-fs \"|\"]   [-sd \"'\"]   [-q true|false]");
+		System.err.println("\t                                                  [-M  true|false]   [-H true|false]  [-l FINE|INFO|WARRINIG]");
 		System.err.println();
-		System.err.println("CSV export usage:\t");
+		System.err.println("for CSV export usage:\t");
         System.err.println("\t  -driverClass jdbc.class.name.driver             -url \"jdbc:rdbs://host:port/DATABASE\"       -user USER -password SECRET -fs \",\" -sd \"\" -q true -M false -H false");
 		System.err.println();
         System.err.println("   Common usage:\t");
         System.err.println("\t  -driverClass com.mysql.jdbc.Driver              -url \"jdbc:mysql://host:3306/DATABASE\"      -user USER -password SECRET");		
 		System.err.println("\t  -driverClass oracle.jdbc.driver.OracleDriver    -url \"jdbc:oracle:thin:@host:1521:DATABASE\" -user USER -password SECRET");
 		System.err.println("\t  -driverClass org.apache.derby.jdbc.ClientDriver -url \"jdbc:derby://host:1527/DATABASE\"      -user USER -password SECRET");
+		System.err.println("\t  -driverClass org.postgresql.Driver              -url \"jdbc:postgresql://host:5432/DATABASE\" -user USER -password SECRET");
     }
 	
 	private static Properties loadVersionProperties(){
