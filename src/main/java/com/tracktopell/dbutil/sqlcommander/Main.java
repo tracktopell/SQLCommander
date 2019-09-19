@@ -608,10 +608,11 @@ public class Main {
         System.err.println("\t  -driverClass jdbc.class.name.driver             -url \"jdbc:rdbs://host:port/DATABASE\"       -user USER -password SECRET -fs \",\" -sd \"\" -q true -M false -H false");
 		System.err.println();
         System.err.println("   Common usage:\t");
-        System.err.println("\t  -driverClass com.mysql.jdbc.Driver              -url \"jdbc:mysql://host:3306/DATABASE\"      -user USER -password SECRET");		
-		System.err.println("\t  -driverClass oracle.jdbc.driver.OracleDriver    -url \"jdbc:oracle:thin:@host:1521:DATABASE\" -user USER -password SECRET");
-		System.err.println("\t  -driverClass org.apache.derby.jdbc.ClientDriver -url \"jdbc:derby://host:1527/DATABASE\"      -user USER -password SECRET");
-		System.err.println("\t  -driverClass org.postgresql.Driver              -url \"jdbc:postgresql://host:5432/DATABASE\" -user USER -password SECRET");
+        System.err.println("\t  -driverClass com.mysql.jdbc.Driver                         -url \"jdbc:mysql://host:3306/DATABASE\"      -user USER -password SECRET");		
+		System.err.println("\t  -driverClass oracle.jdbc.driver.OracleDriver               -url \"jdbc:oracle:thin:@host:1521:DATABASE\" -user USER -password SECRET");
+		System.err.println("\t  -driverClass org.apache.derby.jdbc.ClientDriver            -url \"jdbc:derby://host:1527/DATABASE\"      -user USER -password SECRET");
+		System.err.println("\t  -driverClass org.postgresql.Driver                         -url \"jdbc:postgresql://host:5432/DATABASE\" -user USER -password SECRET");
+		System.err.println("\t  -driverClass com.microsoft.sqlserver.jdbc.SQLServerDriver  -url \"jdbc:sqlserver://localhost:1600;databaseName=DB\" -user USER -password SECRET");
     }
 	
 	private static Properties loadVersionProperties(){

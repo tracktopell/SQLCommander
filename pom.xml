@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.tracktopell.dbutil</groupId>
 	<artifactId>SQLCommander</artifactId>
-		<version>1.36</version>
+		<version>1.38</version>
 	<packaging>jar</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -25,6 +25,13 @@
 			<artifactId>sqljdbc4-chs</artifactId>
 			<version>4.0.2206.100</version>
 		</dependency>
+
+		<dependency>
+		    <groupId>com.microsoft.sqlserver</groupId>
+		    <artifactId>sqljdbc4</artifactId>
+    		<version>4.0</version>
+		</dependency>
+
 <!--
 		<dependency>
 			<groupId>com.oracle.jdbc</groupId>
