@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
 
 import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,17 +31,19 @@ public class Main {
     public static final String PARAM_CONNECTION_JDBC_CATALOG  = "jdbc.catalog";
     public static final String PARAM_CONNECTION_JDBC_SCHEMMA  = "jdbc.schemma";
 
-	public static final String DEFAULT_FIELD_SEPARATOR    = "|";
+	public static final String DEFAULT_FIELD_SEPARATOR    = ",";
 	public static final String DEFAULT_STRING_DELIMITATOR = "'";
 	
     protected Properties connectionProperties;
     protected static boolean printInfoDBOnStartup = false;
-	protected static boolean printMetadata		  = true;
+	protected static boolean printMetadata		  = false;
     protected static boolean printHeaders		  = true;	
 	protected static boolean quietExport          = false;
 	protected static String fieldSeprator      = DEFAULT_FIELD_SEPARATOR;
 	protected static String stringDelimitator  = DEFAULT_STRING_DELIMITATOR;
-	
+	protected static final SimpleDateFormat df_datetime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+	protected static final SimpleDateFormat df_date     = new SimpleDateFormat("yyyy-MM-dd");
+
 	protected static String rdbms = "[SQL]";
     protected static Logger logger = Logger.getLogger(Main.class.getSimpleName());
 	private static boolean continueWithErrors=false;
@@ -108,14 +111,14 @@ public class Main {
 					} else if(argName.equals("-sd")){
 						stringDelimitator= argValue;
 						logger.info("fieldSeprator=["+fieldSeprator+"]");
-					} else if(argName.equalsIgnoreCase("-q") && argValue.equals("true")){
-						quietExport = true;
+					} else if(argName.equalsIgnoreCase("-q") && (argValue.equalsIgnoreCase("true")||argValue.equalsIgnoreCase("false"))){
+						quietExport = Boolean.parseBoolean(argValue);
 						logger.info("quietExport="+quietExport);
-					} else if(argName.equalsIgnoreCase("-H") && argValue.equals("false")){
-						printHeaders = false;
+					} else if(argName.equalsIgnoreCase("-H") && (argValue.equalsIgnoreCase("true")||argValue.equalsIgnoreCase("false"))){
+						printHeaders = Boolean.parseBoolean(argValue);
 						logger.info("printHeaders="+printHeaders);
-					} else if(argName.equalsIgnoreCase("-M") && argValue.equals("false")){
-						printMetadata = false;
+					} else if(argName.equalsIgnoreCase("-M") && (argValue.equalsIgnoreCase("true")||argValue.equalsIgnoreCase("false"))){
+						printMetadata = Boolean.parseBoolean(argValue);
 						logger.info("printMetadata="+printMetadata);
 					} else if(argName.equals("-l")){
 						Level myLevel = null;
@@ -422,12 +425,27 @@ public class Main {
 							
 							rsmd = rs.getMetaData();
 							numberOfColumns = rsmd.getColumnCount();
-//							if (prinToConsole) {                                
-//								System.out.print("\n--------------\n");
-//							}
 							if(printMetadata){
 								for (int j = 0; j < numberOfColumns; j++) {								
-									System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + rsmd.getColumnClassName(j + 1) + stringDelimitator);									
+									System.out.print((j > 0 ? fieldSeprator : "") + rsmd.getColumnClassName(j + 1) );									
+								}
+								System.out.println();
+								for (int j = 0; j < numberOfColumns; j++) {
+									int prc = rsmd.getPrecision(j+1);
+									int sca = rsmd.getScale    (j+1);
+									StringBuilder sbPreSca = new StringBuilder();
+
+									if(prc>0){
+										sbPreSca.append("(");
+										sbPreSca.append(prc);										
+										if(sca>0){
+											sbPreSca.append(",");
+											sbPreSca.append(sca);
+										} 
+										sbPreSca.append(")");
+									}
+
+									System.out.print((j > 0 ? fieldSeprator : "") + rsmd.getColumnTypeName(j + 1).toUpperCase() + sbPreSca );									
 								}
 								if (prinToConsole) {           
 									System.out.print("\n--------------\n");
@@ -437,7 +455,7 @@ public class Main {
 							}
 							if(printHeaders){
 								for (int j = 0; j < numberOfColumns; j++) {																
-									System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + rsmd.getColumnLabel(j + 1) + stringDelimitator);
+									System.out.print((j > 0 ? fieldSeprator : "") + rsmd.getColumnLabel(j + 1) );
 								}
 								if (prinToConsole) {                                
 									System.out.print("\n--------------\n");
@@ -449,9 +467,14 @@ public class Main {
                             for (numRows = 0; rs.next(); numRows++) {                                                                
                                 for (int j = 0; j < numberOfColumns; j++) {	
 									Object o = rs.getObject(j + 1);
-									logger.finest(" DATA: ->"+o+"<-");
+									//logger.finest(" DATA: ->"+o+"<-");
 									if (o == null) {
 										System.out.print((j > 0 ? fieldSeprator + "NULL" : "NULL"));
+									} else if (	o.getClass().equals(java.sql.Timestamp.class) || 
+												o.getClass().equals(java.sql.Time.class     ) ) {
+										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + df_datetime.format(o) + stringDelimitator);
+									} else if (	o.getClass().equals(java.sql.Date.class     ) ) {
+										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + df_date.format(o) + stringDelimitator);
 									} else if (o.getClass().equals(String.class)) {
 										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + o.toString() + stringDelimitator);
 									} else {
