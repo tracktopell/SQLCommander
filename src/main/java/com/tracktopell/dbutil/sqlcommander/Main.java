@@ -429,7 +429,7 @@ public class Main {
 							numberOfColumns = rsmd.getColumnCount();
 							if(printMetadata){
 								for (int j = 0; j < numberOfColumns; j++) {								
-									System.out.print((j > 0 ? fieldSeprator : "") + rsmd.getColumnClassName(j + 1) );									
+									System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + rsmd.getColumnClassName(j + 1) + stringDelimitator );
 								}
 								System.out.println();
 								for (int j = 0; j < numberOfColumns; j++) {
@@ -447,7 +447,7 @@ public class Main {
 										sbPreSca.append(")");
 									}
 
-									System.out.print((j > 0 ? fieldSeprator : "") + rsmd.getColumnTypeName(j + 1).toUpperCase() + sbPreSca );									
+									System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + rsmd.getColumnTypeName(j + 1) + sbPreSca + stringDelimitator );									
 								}
 								if (prinToConsole) {           
 									System.out.print("\n--------------\n");
@@ -479,8 +479,10 @@ public class Main {
 										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + df_date.format(o) + stringDelimitator);
 									} else if (o.getClass().equals(String.class)) {
 										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + o.toString() + stringDelimitator);
+									} else if (o.getClass().equals(byte[].class)) {
+										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + new String((byte[])o) + stringDelimitator);
 									} else {
-										System.out.print((j > 0 ? fieldSeprator : "") + o.toString());
+										System.out.print((j > 0 ? fieldSeprator : "") + stringDelimitator + o.toString() + stringDelimitator);
 									}
 
                                 }                                
